@@ -29,8 +29,8 @@ Example:
 
 Example:
 ```bash
-hottest ./...
-hottest  execute 'go test'
+$ hottest ./...
+hottest v0.0.1 execute 'go test'
 
 ...............................................................
 [Error Messages]
