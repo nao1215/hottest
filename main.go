@@ -112,7 +112,7 @@ func newHottest(args []string) (*hottest, error) {
 	}
 
 	return &hottest{
-		args:            args,
+		args:            args[1:],
 		stats:           TestStats{},
 		allTestMessages: []string{},
 		interval:        spectest.NewInterval(),
