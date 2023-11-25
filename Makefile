@@ -15,7 +15,7 @@ GOOS        = ""
 GOARCH      = ""
 GO_PKGROOT  = ./...
 GO_PACKAGES = $(shell $(GO_LIST) $(GO_PKGROOT))
-GO_LDFLAGS  = -ldflags '-X github.com/nao1215/pooh/version.Version=${VERSION}'
+GO_LDFLAGS  = -ldflags '-X github.com/nao1215/hottest/version.Version=${VERSION}'
 
 build: ## Build hottest binary
 	env GO111MODULE=on GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) $(GO_LDFLAGS) -o $(APP) main.go

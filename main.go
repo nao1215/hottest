@@ -48,6 +48,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/go-spectest/spectest"
+	"github.com/nao1215/hottest/version"
 	"golang.org/x/exp/slices"
 )
 
@@ -112,7 +113,7 @@ func newHottest(args []string) (*hottest, error) {
 	}
 
 	return &hottest{
-		args:            args,
+		args:            args[1:],
 		stats:           TestStats{},
 		allTestMessages: []string{},
 		interval:        spectest.NewInterval(),
@@ -121,6 +122,7 @@ func newHottest(args []string) (*hottest, error) {
 
 // run runs the hottest command.
 func (s *hottest) run() error {
+	fmt.Printf("hottest %s execute 'go test'\n\n", color.GreenString(version.GetVersion()))
 	if err := s.canUseGoCommand(); err != nil {
 		return fmt.Errorf("hottest command requires go command. please install go command")
 	}
