@@ -30,8 +30,6 @@ Example:
 Example:
 ```bash
 $ hottest ./...
-hottest v0.0.1 execute 'go test'
-
 ...............................................................
 [Error Messages]
  --- FAIL: TestPlainText (0.00s)
@@ -41,13 +39,7 @@ hottest v0.0.1 execute 'go test'
              -  "Hllo",
              +  "Hello",
                }
-
-[Test Results]
- - Execution Time: 242.172244ms
- - Total         : 63
- - Passed        : 61
- - Failed        : 2
- - Skipped       : 0
+Results: 61/2/0 (ok/ng/skip, 242.172244ms, by hottest v0.0.2)
 ```
 
 ## LICENSE

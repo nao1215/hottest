@@ -122,7 +122,6 @@ func newHottest(args []string) (*hottest, error) {
 
 // run runs the hottest command.
 func (s *hottest) run() error {
-	fmt.Printf("hottest %s execute 'go test'\n\n", color.GreenString(version.GetVersion()))
 	if err := s.canUseGoCommand(); err != nil {
 		return fmt.Errorf("hottest command requires go command. please install go command")
 	}
@@ -267,27 +266,20 @@ func (s *hottest) parse(line string) {
 
 // testResult prints the test result.
 func (s *hottest) testResult() {
+	fmt.Println()
+
 	if s.stats.Fail > 0 {
-		fmt.Printf("\n[Error Messages]\n")
+		fmt.Printf("[Error Messages]\n")
 		for _, msg := range extractFailTestMessage(s.allTestMessages) {
 			fmt.Printf(" %s\n", msg)
 		}
 	}
 
-	fmt.Printf("\n[Test Results]\n")
-	fmt.Printf(" - Execution Time: %s\n", s.interval.Duration())
-	fmt.Printf(" - Total         : %d\n", s.stats.Total)
-	fmt.Printf(" - Passed        : %s\n", color.GreenString("%d", s.stats.Pass))
-	if s.stats.Fail == 0 {
-		fmt.Printf(" - Failed        : %d\n", s.stats.Fail)
-	} else {
-		fmt.Printf(" - Failed        : %s\n", color.RedString("%d", s.stats.Fail))
-	}
-	if s.stats.Skip == 0 {
-		fmt.Printf(" - Skipped       : %d\n", s.stats.Skip)
-	} else {
-		fmt.Printf(" - Skipped       : %s\n", color.BlueString("%d", s.stats.Skip))
-	}
+	fmt.Printf("Results: %s/%s/%s (%s/%s/%s, %s, by hottest %s)\n",
+		color.GreenString("%d", s.stats.Pass), color.RedString("%d", s.stats.Fail), color.BlueString("%d", s.stats.Skip),
+		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
+		s.interval.Duration(),
+		version.GetVersion())
 }
 
 // extractFailTestMessage extracts the error message of the failed test.
