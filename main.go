@@ -52,12 +52,14 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+var osExit = os.Exit
+
 func main() {
 	if err := run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		osExit(1)
 	}
-	os.Exit(0)
+	osExit(0)
 }
 
 // run execute command.
@@ -74,7 +76,8 @@ func run(args []string) error {
 
 // usage prints the usage of the hottest command.
 func usage() {
-	fmt.Println("hottest is user-friendly 'go test' that usage is the same as 'go test'.")
+	fmt.Printf("hottest %s\n", color.GreenString(version.GetVersion()))
+	fmt.Println("User-friendly 'go test' that extracts error messages.")
 	fmt.Println("")
 	fmt.Println("Usage:")
 	fmt.Println("  hottest [arguments]")
@@ -123,7 +126,7 @@ func newHottest(args []string) (*hottest, error) {
 // run runs the hottest command.
 func (s *hottest) run() error {
 	if err := s.canUseGoCommand(); err != nil {
-		return fmt.Errorf("hottest command requires go command. please install go command")
+		return errors.New("hottest command requires go command. please install go command")
 	}
 	return s.runTest()
 }
@@ -275,11 +278,10 @@ func (s *hottest) testResult() {
 		}
 	}
 
-	fmt.Printf("Results: %s/%s/%s (%s/%s/%s, %s, by hottest %s)\n",
+	fmt.Printf("Results: %s/%s/%s (%s/%s/%s, %s)\n",
 		color.GreenString("%d", s.stats.Pass), color.RedString("%d", s.stats.Fail), color.BlueString("%d", s.stats.Skip),
 		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
-		s.interval.Duration(),
-		version.GetVersion())
+		s.interval.Duration())
 }
 
 // extractFailTestMessage extracts the error message of the failed test.
