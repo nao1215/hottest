@@ -2,6 +2,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -862,4 +863,80 @@ func Test_extractFailTestMessage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_main(t *testing.T) {
+	t.Run("test for version package", func(t *testing.T) {
+		os.Args = []string{"hottest", "./version/..."}
+
+		wantStatus := 0
+		gotStatus := 0
+		osExit = func(code int) {
+			gotStatus = code
+		}
+		defer func() {
+			osExit = os.Exit
+		}()
+
+		main()
+		if gotStatus != wantStatus {
+			t.Errorf("os.Exit(%d) is called", gotStatus)
+		}
+	})
+
+	t.Run("execute hottest without arguments", func(t *testing.T) {
+		os.Args = []string{"hottest"}
+
+		wantStatus := 0
+		gotStatus := 0
+		osExit = func(code int) {
+			gotStatus = code
+		}
+		defer func() {
+			osExit = os.Exit
+		}()
+
+		main()
+		if gotStatus != wantStatus {
+			t.Errorf("os.Exit(%d) is called", gotStatus)
+		}
+	})
+
+	t.Run("execute hottest with invalid arguments", func(t *testing.T) {
+		os.Args = []string{"hottest", "invalid"}
+
+		wantStatus := 0
+		gotStatus := 0
+		osExit = func(code int) {
+			gotStatus = code
+		}
+		defer func() {
+			osExit = os.Exit
+		}()
+
+		main()
+		if gotStatus != wantStatus {
+			t.Errorf("os.Exit(%d) is called", gotStatus)
+		}
+	})
+
+	t.Run("go command is not installed", func(t *testing.T) {
+		os.Args = []string{"hottest", "./..."}
+		t.Setenv("GOPATH", "invalid")
+		t.Setenv("PATH", "invalid")
+
+		wantStatus := 0
+		gotStatus := 0
+		osExit = func(code int) {
+			gotStatus = code
+		}
+		defer func() {
+			osExit = os.Exit
+		}()
+
+		main()
+		if gotStatus != wantStatus {
+			t.Errorf("os.Exit(%d) is called", gotStatus)
+		}
+	})
 }
