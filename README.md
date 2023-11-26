@@ -2,6 +2,8 @@
 [![MacUnitTest](https://github.com/nao1215/hottest/actions/workflows/mac_test.yml/badge.svg)](https://github.com/nao1215/hottest/actions/workflows/mac_test.yml)
 [![WindowsUnitTest](https://github.com/nao1215/hottest/actions/workflows/windows_test.yml/badge.svg)](https://github.com/nao1215/hottest/actions/workflows/windows_test.yml)
 [![reviewdog](https://github.com/nao1215/hottest/actions/workflows/reviewdog.yml/badge.svg)](https://github.com/nao1215/hottest/actions/workflows/reviewdog.yml)
+![Coverage](https://raw.githubusercontent.com/nao1215/octocovs-central-repo/main/badges/nao1215/hottest/coverage.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nao1215/hottest)](https://goreportcard.com/report/github.com/nao1215/hottest)
 ## What is hottest ?
 The hottest part in unit testing is the **error messages**.
   
