@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -45,6 +46,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
+	"unicode"
 
 	"github.com/fatih/color"
 	"github.com/go-spectest/spectest"
@@ -104,6 +107,7 @@ type hottest struct {
 	stats           TestStats
 	allTestMessages []string
 	interval        *spectest.Interval
+	err             error
 }
 
 // errNoArguments is an error that occurs when there are no arguments.
@@ -124,21 +128,21 @@ func newHottest(args []string) (*hottest, error) {
 }
 
 // run runs the hottest command.
-func (s *hottest) run() error {
-	if err := s.canUseGoCommand(); err != nil {
+func (h *hottest) run() error {
+	if err := h.canUseGoCommand(); err != nil {
 		return errors.New("hottest command requires go command. please install go command")
 	}
-	return s.runTest()
+	return h.runTest()
 }
 
 // canUseGoCommand returns true if go command is available.
-func (s *hottest) canUseGoCommand() error {
+func (h *hottest) canUseGoCommand() error {
 	_, err := exec.LookPath("go")
 	return err
 }
 
 // runTest runs the test command.
-func (s *hottest) runTest() error {
+func (h *hottest) runTest() error {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	defer wg.Wait()
@@ -146,9 +150,12 @@ func (s *hottest) runTest() error {
 	r, w := io.Pipe()
 	defer w.Close() //nolint
 
-	args := append([]string{"test"}, s.args...)
+	args := append([]string{"test"}, h.args...)
 	if !slices.Contains(args, "-v") {
 		args = append(args, "-v") // This option is required to count the number of tests.
+	}
+	if !slices.Contains(args, "-json") {
+		args = append(args, "-json") // This option is required to parse the test result smoothly.
 	}
 
 	cmd := exec.Command("go", args...) //#nosec
@@ -156,16 +163,16 @@ func (s *hottest) runTest() error {
 	cmd.Stdout = w
 	cmd.Env = os.Environ()
 
-	s.interval.Start()
+	h.interval.Start()
 	if err := cmd.Start(); err != nil {
 		wg.Done()
 		return err
 	}
 
-	go s.consume(&wg, r)
+	go h.consume(&wg, r)
 	defer func() {
-		s.interval.End()
-		s.testResult()
+		h.interval.End()
+		h.testResult()
 	}()
 
 	sigc := make(chan os.Signal, 1)
@@ -183,7 +190,7 @@ func (s *hottest) runTest() error {
 					if errors.Is(err, os.ErrProcessDone) {
 						break
 					}
-					fmt.Fprintf(os.Stderr, "failed to send signal: %s", err.Error())
+					h.err = errors.Join(h.err, fmt.Errorf("failed to send signal: %w", err))
 				}
 			case <-done:
 				return
@@ -202,7 +209,7 @@ func (s *hottest) runTest() error {
 }
 
 // consume consumes the output of the test command.
-func (s *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
+func (h *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
 	defer wg.Done()
 	reader := bufio.NewReader(r)
 	for {
@@ -211,16 +218,31 @@ func (s *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
 			return
 		}
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			h.err = errors.Join(h.err, err)
 			return
 		}
-		s.parse(string(l))
+		h.parse(string(l))
 	}
 }
 
+// TestOutputJSON represents the structure of a test output log entry.
+type TestOutputJSON struct {
+	Time    time.Time `json:"Time"`
+	Action  string    `json:"Action"`
+	Package string    `json:"Package"`
+	Test    string    `json:"Test"`
+	Output  string    `json:"Output,omitempty"`
+	Elapsed float64   `json:"Elapsed,omitempty"`
+}
+
 // parse parses a line of test output. It updates the test statistics.
-func (s *hottest) parse(line string) {
-	trimmed := strings.TrimSpace(line)
+func (h *hottest) parse(line string) {
+	var outputJSON TestOutputJSON
+	if err := json.Unmarshal([]byte(line), &outputJSON); err != nil {
+		h.err = errors.Join(h.err, err)
+		return
+	}
+	trimmed := strings.TrimSpace(outputJSON.Output)
 
 	switch {
 	case strings.HasPrefix(trimmed, "ok"):
@@ -237,51 +259,56 @@ func (s *hottest) parse(line string) {
 	case strings.HasPrefix(trimmed, "=== CONT"):
 		fallthrough
 	case strings.HasPrefix(trimmed, "=== PAUSE"):
-		s.allTestMessages = append(s.allTestMessages, line)
+		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 		return
 
 	// passed
 	case strings.HasPrefix(trimmed, "--- PASS"):
 		fmt.Fprint(os.Stdout, color.GreenString("."))
-		atomic.AddInt32(&s.stats.Pass, 1)
-		atomic.StoreInt32(&s.stats.Total, atomic.AddInt32(&s.stats.Total, 1))
-		s.allTestMessages = append(s.allTestMessages, line)
+		atomic.AddInt32(&h.stats.Pass, 1)
+		atomic.StoreInt32(&h.stats.Total, atomic.AddInt32(&h.stats.Total, 1))
+		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 
 	// skipped
 	case strings.HasPrefix(trimmed, "--- SKIP"):
 		fmt.Fprint(os.Stdout, color.BlueString("."))
-		atomic.AddInt32(&s.stats.Skip, 1)
-		atomic.StoreInt32(&s.stats.Total, atomic.AddInt32(&s.stats.Total, 1))
-		s.allTestMessages = append(s.allTestMessages, line)
+		atomic.AddInt32(&h.stats.Skip, 1)
+		atomic.StoreInt32(&h.stats.Total, atomic.AddInt32(&h.stats.Total, 1))
+		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 
 	// failed
 	case strings.HasPrefix(trimmed, "--- FAIL"):
 		fmt.Fprint(os.Stdout, color.RedString("."))
-		atomic.AddInt32(&s.stats.Fail, 1)
-		atomic.StoreInt32(&s.stats.Total, atomic.AddInt32(&s.stats.Total, 1))
-		s.allTestMessages = append(s.allTestMessages, line)
+		atomic.AddInt32(&h.stats.Fail, 1)
+		atomic.StoreInt32(&h.stats.Total, atomic.AddInt32(&h.stats.Total, 1))
+		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 
 	default:
-		s.allTestMessages = append(s.allTestMessages, line)
+		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 		return
 	}
 }
 
 // testResult prints the test result.
-func (s *hottest) testResult() {
+func (h *hottest) testResult() {
 	fmt.Println()
 
-	if s.stats.Fail > 0 {
+	if h.stats.Fail > 0 {
 		fmt.Printf("[Error Messages]\n")
-		for _, msg := range extractFailTestMessage(s.allTestMessages) {
-			fmt.Printf(" %s\n", msg)
+		for _, msg := range extractFailTestMessage(h.allTestMessages) {
+			fmt.Printf(" %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
 		}
 	}
 
 	fmt.Printf("Results: %s/%s/%s (%s/%s/%s, %s)\n",
-		color.GreenString("%d", s.stats.Pass), color.RedString("%d", s.stats.Fail), color.BlueString("%d", s.stats.Skip),
+		color.GreenString("%d", h.stats.Pass), color.RedString("%d", h.stats.Fail), color.BlueString("%d", h.stats.Skip),
 		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
-		s.interval.Duration())
+		h.interval.Duration())
+
+	if h.err != nil {
+		fmt.Println()
+		fmt.Printf("hottest internal error occurred during test execution: %s\n", h.err.Error())
+	}
 }
 
 // extractFailTestMessage extracts the error message of the failed test.
@@ -300,14 +327,7 @@ func extractFailTestMessage(testResultMsgs []string) []string {
 
 			if beforeRunPos < lastFailPos {
 				for _, v := range testResultMsgs[beforeRunPos:lastFailPos] {
-					if !strings.Contains(v, "--- FAIL") &&
-						!strings.Contains(v, "--- PASS") &&
-						!strings.Contains(v, "--- SKIP") &&
-						!strings.Contains(v, "=== RUN") &&
-						!strings.Contains(v, "=== CONT") &&
-						!strings.Contains(v, "=== PAUSE") &&
-						!strings.Contains(v, "=== CONT") &&
-						!strings.Contains(v, "=== NAME") {
+					if isRecordableErrorMessage(v) {
 						failTestMessages = append(failTestMessages, fmt.Sprintf("    %s", color.RedString(v)))
 					}
 				}
@@ -323,14 +343,7 @@ func extractFailTestMessage(testResultMsgs []string) []string {
 
 	if beforeRunPos < lastFailPos {
 		for _, v := range testResultMsgs[beforeRunPos:lastFailPos] {
-			if !strings.Contains(v, "--- FAIL") &&
-				!strings.Contains(v, "--- PASS") &&
-				!strings.Contains(v, "--- SKIP") &&
-				!strings.Contains(v, "=== RUN") &&
-				!strings.Contains(v, "=== CONT") &&
-				!strings.Contains(v, "=== PAUSE") &&
-				!strings.Contains(v, "=== CONT") &&
-				!strings.Contains(v, "=== NAME") {
+			if isRecordableErrorMessage(v) {
 				failTestMessages = append(failTestMessages, fmt.Sprintf("    %s", color.RedString(v)))
 			}
 		}
@@ -344,4 +357,16 @@ func extractStringBeforeThrash(s string) string {
 		return s[:index]
 	}
 	return s
+}
+
+func isRecordableErrorMessage(s string) bool {
+	return !strings.Contains(s, "--- FAIL") &&
+		!strings.Contains(s, "--- PASS") &&
+		!strings.Contains(s, "--- SKIP") &&
+		!strings.Contains(s, "=== RUN") &&
+		!strings.Contains(s, "=== CONT") &&
+		!strings.Contains(s, "=== PAUSE") &&
+		!strings.Contains(s, "=== CONT") &&
+		!strings.Contains(s, "=== NAME") &&
+		strings.TrimRightFunc(s, unicode.IsSpace) != ""
 }
