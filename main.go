@@ -109,17 +109,6 @@ type hottest struct {
 	interval        *spectest.Interval
 }
 
-type messages struct {
-	mu       sync.Mutex
-	messages []string
-}
-
-func (m *messages) append(msg string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.messages = append(m.messages, msg)
-}
-
 // errNoArguments is an error that occurs when there are no arguments.
 var errNoArguments = errors.New("no arguments")
 
