@@ -105,9 +105,37 @@ type TestStats struct {
 type hottest struct {
 	args            []string
 	stats           TestStats
-	allTestMessages []string
+	allTestMessages messages
 	interval        *spectest.Interval
-	err             error
+	errs            errs
+}
+
+type messages struct {
+	mu       sync.Mutex
+	messages []string
+}
+
+func (m *messages) append(msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.messages = append(m.messages, msg)
+}
+
+type errs struct {
+	mu   sync.Mutex
+	errs error
+}
+
+func (e *errs) Error() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.errs.Error()
+}
+
+func (e *errs) set(err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.errs = errors.Join(e.errs, err)
 }
 
 // errNoArguments is an error that occurs when there are no arguments.
@@ -120,10 +148,16 @@ func newHottest(args []string) (*hottest, error) {
 	}
 
 	return &hottest{
-		args:            args[1:],
-		stats:           TestStats{},
-		allTestMessages: []string{},
-		interval:        spectest.NewInterval(),
+		args:  args[1:],
+		stats: TestStats{},
+		allTestMessages: messages{
+			mu:       sync.Mutex{},
+			messages: []string{},
+		},
+		interval: spectest.NewInterval(),
+		errs: errs{
+			mu: sync.Mutex{},
+		},
 	}, nil
 }
 
@@ -190,7 +224,7 @@ func (h *hottest) runTest() error {
 					if errors.Is(err, os.ErrProcessDone) {
 						break
 					}
-					h.err = errors.Join(h.err, fmt.Errorf("failed to send signal: %w", err))
+					h.errs.set(fmt.Errorf("failed to send signal: %w", err))
 				}
 			case <-done:
 				return
@@ -218,7 +252,7 @@ func (h *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
 			return
 		}
 		if err != nil {
-			h.err = errors.Join(h.err, err)
+			h.errs.set(err)
 			return
 		}
 		h.parse(string(l))
@@ -239,7 +273,7 @@ type TestOutputJSON struct {
 func (h *hottest) parse(line string) {
 	var outputJSON TestOutputJSON
 	if err := json.Unmarshal([]byte(line), &outputJSON); err != nil {
-		h.err = errors.Join(h.err, err)
+		h.errs.set(err)
 		return
 	}
 	trimmed := strings.TrimSpace(outputJSON.Output)
@@ -259,7 +293,7 @@ func (h *hottest) parse(line string) {
 	case strings.HasPrefix(trimmed, "=== CONT"):
 		fallthrough
 	case strings.HasPrefix(trimmed, "=== PAUSE"):
-		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
+		h.allTestMessages.append(strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 		return
 
 	// passed
@@ -267,24 +301,24 @@ func (h *hottest) parse(line string) {
 		fmt.Fprint(os.Stdout, color.GreenString("."))
 		atomic.AddInt32(&h.stats.Pass, 1)
 		atomic.StoreInt32(&h.stats.Total, atomic.AddInt32(&h.stats.Total, 1))
-		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
+		h.allTestMessages.append(strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 
 	// skipped
 	case strings.HasPrefix(trimmed, "--- SKIP"):
 		fmt.Fprint(os.Stdout, color.BlueString("."))
 		atomic.AddInt32(&h.stats.Skip, 1)
 		atomic.StoreInt32(&h.stats.Total, atomic.AddInt32(&h.stats.Total, 1))
-		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
+		h.allTestMessages.append(strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 
 	// failed
 	case strings.HasPrefix(trimmed, "--- FAIL"):
 		fmt.Fprint(os.Stdout, color.RedString("."))
 		atomic.AddInt32(&h.stats.Fail, 1)
 		atomic.StoreInt32(&h.stats.Total, atomic.AddInt32(&h.stats.Total, 1))
-		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
+		h.allTestMessages.append(strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 
 	default:
-		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
+		h.allTestMessages.append(strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
 		return
 	}
 }
@@ -295,7 +329,7 @@ func (h *hottest) testResult() {
 
 	if h.stats.Fail > 0 {
 		fmt.Printf("[Error Messages]\n")
-		for _, msg := range extractFailTestMessage(h.allTestMessages) {
+		for _, msg := range extractFailTestMessage(h.allTestMessages.messages) {
 			fmt.Printf(" %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
 		}
 	}
@@ -305,9 +339,9 @@ func (h *hottest) testResult() {
 		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
 		h.interval.Duration())
 
-	if h.err != nil {
+	if h.errs.errs != nil {
 		fmt.Println()
-		fmt.Printf("hottest internal error occurred during test execution: %s\n", h.err.Error())
+		fmt.Printf("hottest internal error occurred during test execution: %s\n", h.errs.Error())
 	}
 }
 
