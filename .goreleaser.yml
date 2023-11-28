@@ -1,0 +1,41 @@
+project_name: hottest
+env:
+  - GO111MODULE=on
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+builds:
+  - main: .
+    ldflags:
+      - -s -w -X github.com/nao1215/hottest.Version=v{{ .Version }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+nfpms:
+  - maintainer: Naohiro CHIKAMATSU <n.chika156@gmail.com>
+    description: hottest - user-friendly 'go test' that extracts error messages.
+    homepage: https://github.com/nao1215/hottest
+    license: BSD 3-Clause License
+    formats:
+      - deb
+      - rpm
+      - apk
