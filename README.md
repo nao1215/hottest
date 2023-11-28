@@ -44,6 +44,19 @@ $ hottest ./...
 Results: 61/2/0 (ok/ng/skip, 242.172244ms, by hottest v0.0.2)
 ```
 
+## Alternative tools
+- [rakyll/gotest](https://github.com/rakyll/gotest): go test with colors
+- [kyoh86/richgo](https://github.com/kyoh86/richgo): Enrich `go test` outputs with text decorations.
+- [gotestyourself/gotestsum](https://github.com/gotestyourself/gotestsum): 'go test' runner with output optimized for humans, JUnit XML for CI integration, and a summary of the test results.
+
+## Contributing
+First off, thanks for taking the time to contribute! If you feel that the hottest command is not working properly, please let me know by sending me `go test -v . /... -json` log please.
+  
+Contributions are not only related to development. For example, GitHub Star motivates me to develop!
+[![Star History Chart](https://api.star-history.com/svg?repos=nao1215/hottest&type=Date)](https://star-history.com/#nao1215/hottest&Date)
+
+
+
 ## LICENSE
 [BSD 3-Clause License](./LICENSE)
   
