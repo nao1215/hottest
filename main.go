@@ -169,10 +169,6 @@ func (h *hottest) runTest() error {
 	}
 
 	go h.consume(&wg, r)
-	defer func() {
-		h.interval.End()
-		h.testResult()
-	}()
 
 	sigc := make(chan os.Signal, 1)
 	done := make(chan struct{})
@@ -203,6 +199,9 @@ func (h *hottest) runTest() error {
 		}
 		return err
 	}
+
+	h.interval.End()
+	h.testResult()
 
 	return nil
 }
@@ -238,6 +237,10 @@ type TestOutputJSON struct {
 func (h *hottest) parse(line string) {
 	var outputJSON TestOutputJSON
 	if err := json.Unmarshal([]byte(line), &outputJSON); err != nil {
+		// If the line is not a JSON, hottest has bad arguments.
+		// So, line is likely to be an error message:
+		// 'package test is not in std (/usr/local/go/src/test)'
+		fmt.Fprintf(os.Stderr, "%s\n", line)
 		return
 	}
 	trimmed := strings.TrimSpace(outputJSON.Output)
@@ -289,6 +292,11 @@ func (h *hottest) parse(line string) {
 
 // testResult prints the test result.
 func (h *hottest) testResult() {
+	if h.stats.Total == 0 {
+		fmt.Println("no tests to run")
+		return
+	}
+
 	fmt.Println()
 
 	if h.stats.Fail > 0 {
