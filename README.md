@@ -47,9 +47,9 @@ Results: 61/2/0 (ok/ng/skip, 242.172244ms, by hottest v0.0.2)
 
 ### On GitHub Actions
 :octocat: GitHub Actions for hottest is available at [nao1215/actions-hottest](https://github.com/nao1215/actions-hottest)
+
 Sample workflow:
 ```yml
-
 name: SampleTest
 
 on:
@@ -78,7 +78,12 @@ jobs:
           # This argument is same as `go test` command.
           args: '-cover -coverpkg=./... -coverprofile=coverage.out ./...'
 ```
+  
+#### Success case
+![success](doc/image/success.png)
 
+#### Failure case
+![failure](doc/image/fail.png)
 
 ## Alternative tools
 - [rakyll/gotest](https://github.com/rakyll/gotest): go test with colors
