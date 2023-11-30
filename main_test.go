@@ -940,3 +940,21 @@ func Test_main(t *testing.T) {
 		}
 	})
 }
+
+func Test_isGitHubActions(t *testing.T) {
+	t.Run("return true if GITHUB_ACTIONS is set", func(t *testing.T) {
+		t.Setenv("GITHUB_ACTIONS", "true")
+
+		if !isGitHubActions() {
+			t.Errorf("want true, got false")
+		}
+	})
+
+	t.Run("return false if GITHUB_ACTIONS is not set", func(t *testing.T) {
+		t.Setenv("GITHUB_ACTIONS", "true")
+
+		if isGitHubActions() {
+			t.Errorf("want false, got true")
+		}
+	})
+}

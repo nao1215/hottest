@@ -59,7 +59,7 @@ var osExit = os.Exit
 
 func main() {
 	if err := run(os.Args); err != nil {
-		if errors.Is(err, errExitStatus) {
+		if errors.Is(err, errExitStatus) || errors.Is(err, errFailTest) {
 			osExit(1)
 		}
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -117,6 +117,8 @@ var (
 	errNoArguments = errors.New("no arguments")
 	// errExitStatus is an error that occurs when the exit status is not 0.
 	errExitStatus = errors.New("exit status is not 0")
+	// errFailTest is an error that occurs when the test fails.
+	errFailTest = errors.New("fail test")
 )
 
 // newHottest returns a hottest.
@@ -138,7 +140,13 @@ func (h *hottest) run() error {
 	if err := h.canUseGoCommand(); err != nil {
 		return errors.New("hottest command requires go command. please install go command")
 	}
-	return h.runTest()
+	if err := h.runTest(); err != nil {
+		return err
+	}
+	if isGitHubActions() && h.stats.Fail > 0 {
+		return errFailTest
+	}
+	return nil
 }
 
 // canUseGoCommand returns true if go command is available.
@@ -148,7 +156,7 @@ func (h *hottest) canUseGoCommand() error {
 }
 
 // runTest runs the test command.
-func (h *hottest) runTest() (err error) {
+func (h *hottest) runTest() error {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	defer wg.Wait()
@@ -170,7 +178,7 @@ func (h *hottest) runTest() (err error) {
 	cmd.Env = os.Environ()
 
 	h.interval.Start()
-	if err = cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		wg.Done()
 		return err
 	}
@@ -179,14 +187,6 @@ func (h *hottest) runTest() (err error) {
 	defer func() {
 		h.interval.End()
 		h.testResult()
-
-		if isGitHubActions() && h.stats.Fail > 0 {
-			if err != nil {
-				err = fmt.Errorf("%s: %w", err.Error(), errExitStatus)
-			} else {
-				err = errExitStatus
-			}
-		}
 	}()
 
 	sigc := make(chan os.Signal, 1)
@@ -200,7 +200,7 @@ func (h *hottest) runTest() (err error) {
 		for {
 			select {
 			case sig := <-sigc:
-				if err = cmd.Process.Signal(sig); err != nil {
+				if err := cmd.Process.Signal(sig); err != nil {
 					if errors.Is(err, os.ErrProcessDone) {
 						break
 					}
@@ -212,7 +212,7 @@ func (h *hottest) runTest() (err error) {
 		}
 	}()
 
-	if err = cmd.Wait(); err != nil {
+	if err := cmd.Wait(); err != nil {
 		if _, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
 			return errExitStatus
 		}
