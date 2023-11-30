@@ -866,7 +866,6 @@ func Test_extractFailTestMessage(t *testing.T) {
 }
 
 func Test_main(t *testing.T) {
-	t.Fatal("error")
 	t.Run("test for version package", func(t *testing.T) {
 		os.Args = []string{"hottest", "./version/..."}
 
