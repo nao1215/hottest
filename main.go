@@ -59,6 +59,9 @@ var osExit = os.Exit
 
 func main() {
 	if err := run(os.Args); err != nil {
+		if errors.Is(err, errExitStatus) {
+			osExit(1)
+		}
 		fmt.Fprintln(os.Stderr, err.Error())
 		osExit(1)
 	}
@@ -109,8 +112,12 @@ type hottest struct {
 	interval        *spectest.Interval
 }
 
-// errNoArguments is an error that occurs when there are no arguments.
-var errNoArguments = errors.New("no arguments")
+var (
+	// errNoArguments is an error that occurs when there are no arguments.
+	errNoArguments = errors.New("no arguments")
+	// errExitStatus is an error that occurs when the exit status is not 0.
+	errExitStatus = errors.New("exit status is not 0")
+)
 
 // newHottest returns a hottest.
 func newHottest(args []string) (*hottest, error) {
@@ -195,7 +202,7 @@ func (h *hottest) runTest() error {
 
 	if err := cmd.Wait(); err != nil {
 		if _, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
-			return nil
+			return errExitStatus
 		}
 		return err
 	}
@@ -219,7 +226,10 @@ func (h *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		h.parse(string(l))
+		if err := h.parse(string(l)); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			return
+		}
 	}
 }
 
@@ -234,14 +244,13 @@ type TestOutputJSON struct {
 }
 
 // parse parses a line of test output. It updates the test statistics.
-func (h *hottest) parse(line string) {
+func (h *hottest) parse(line string) error {
 	var outputJSON TestOutputJSON
 	if err := json.Unmarshal([]byte(line), &outputJSON); err != nil {
 		// If the line is not a JSON, hottest has bad arguments.
 		// So, line is likely to be an error message:
 		// 'package test is not in std (/usr/local/go/src/test)'
-		fmt.Fprintf(os.Stderr, "%s\n", line)
-		return
+		return errors.New(line)
 	}
 	trimmed := strings.TrimSpace(outputJSON.Output)
 
@@ -253,7 +262,7 @@ func (h *hottest) parse(line string) {
 	case strings.HasPrefix(trimmed, "PASS"):
 		fallthrough
 	case strings.Contains(trimmed, "[no test files]"):
-		return
+		return nil
 
 	case strings.HasPrefix(trimmed, "=== RUN"):
 		fallthrough
@@ -261,7 +270,7 @@ func (h *hottest) parse(line string) {
 		fallthrough
 	case strings.HasPrefix(trimmed, "=== PAUSE"):
 		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
-		return
+		return nil
 
 	// passed
 	case strings.HasPrefix(trimmed, "--- PASS"):
@@ -286,8 +295,9 @@ func (h *hottest) parse(line string) {
 
 	default:
 		h.allTestMessages = append(h.allTestMessages, strings.TrimRightFunc(outputJSON.Output, unicode.IsSpace))
-		return
+		return nil
 	}
+	return nil
 }
 
 // testResult prints the test result.
