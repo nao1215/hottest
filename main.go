@@ -148,7 +148,7 @@ func (h *hottest) canUseGoCommand() error {
 }
 
 // runTest runs the test command.
-func (h *hottest) runTest() error {
+func (h *hottest) runTest() (err error) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	defer wg.Wait()
@@ -170,12 +170,24 @@ func (h *hottest) runTest() error {
 	cmd.Env = os.Environ()
 
 	h.interval.Start()
-	if err := cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		wg.Done()
 		return err
 	}
 
 	go h.consume(&wg, r)
+	defer func() {
+		h.interval.End()
+		h.testResult()
+
+		if isGitHubActions() && h.stats.Fail > 0 {
+			if err != nil {
+				err = fmt.Errorf("%s: %w", err.Error(), errExitStatus)
+			} else {
+				err = errExitStatus
+			}
+		}
+	}()
 
 	sigc := make(chan os.Signal, 1)
 	done := make(chan struct{})
@@ -188,7 +200,7 @@ func (h *hottest) runTest() error {
 		for {
 			select {
 			case sig := <-sigc:
-				if err := cmd.Process.Signal(sig); err != nil {
+				if err = cmd.Process.Signal(sig); err != nil {
 					if errors.Is(err, os.ErrProcessDone) {
 						break
 					}
@@ -200,16 +212,12 @@ func (h *hottest) runTest() error {
 		}
 	}()
 
-	if err := cmd.Wait(); err != nil {
+	if err = cmd.Wait(); err != nil {
 		if _, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
 			return errExitStatus
 		}
 		return err
 	}
-
-	h.interval.End()
-	h.testResult()
-
 	return nil
 }
 
@@ -303,20 +311,20 @@ func (h *hottest) parse(line string) error {
 // testResult prints the test result.
 func (h *hottest) testResult() {
 	if h.stats.Total == 0 {
-		fmt.Println("no tests to run")
+		fmt.Fprintf(os.Stdout, "no tests to run\n")
 		return
 	}
 
-	fmt.Println()
+	fmt.Fprintln(os.Stdout)
 
 	if h.stats.Fail > 0 {
-		fmt.Printf("[Error Messages]\n")
+		fmt.Fprintf(os.Stdout, "[Error Messages]\n")
 		for _, msg := range extractFailTestMessage(h.allTestMessages) {
 			fmt.Printf(" %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
 		}
 	}
 
-	fmt.Printf("Results: %s/%s/%s (%s/%s/%s, %s)\n",
+	fmt.Fprintf(os.Stdout, "Results: %s/%s/%s (%s/%s/%s, %s)\n",
 		color.GreenString("%d", h.stats.Pass), color.RedString("%d", h.stats.Fail), color.BlueString("%d", h.stats.Skip),
 		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
 		h.interval.Duration())
@@ -380,4 +388,9 @@ func isRecordableErrorMessage(s string) bool {
 		!strings.Contains(s, "=== CONT") &&
 		!strings.Contains(s, "=== NAME") &&
 		strings.TrimRightFunc(s, unicode.IsSpace) != ""
+}
+
+// isGitHubActions returns true if the hottest command is executed in GitHub Actions.
+func isGitHubActions() bool {
+	return os.Getenv("GITHUB_ACTIONS") == "true"
 }
