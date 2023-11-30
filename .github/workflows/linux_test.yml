@@ -28,5 +28,5 @@ jobs:
       - name: Run tests with coverage report output
         run: |
           go install github.com/nao1215/hottest@latest
-          hottest test -cover -coverpkg=./... -coverprofile=coverage.out ./...
+          hottest -cover -coverpkg=./... -coverprofile=coverage.out ./...
       - uses: k1LoW/octocov-action@v0
