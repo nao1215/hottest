@@ -1,0 +1,1 @@
+Please submit feature requests or bug reports through the [Issues](https://github.com/nao1215/hottest/issues).
