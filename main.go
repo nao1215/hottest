@@ -59,7 +59,7 @@ var osExit = os.Exit
 
 func main() {
 	if err := run(os.Args); err != nil {
-		if errors.Is(err, errExitStatus) {
+		if errors.Is(err, errExitStatus) || errors.Is(err, errFailTest) {
 			osExit(1)
 		}
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -117,6 +117,8 @@ var (
 	errNoArguments = errors.New("no arguments")
 	// errExitStatus is an error that occurs when the exit status is not 0.
 	errExitStatus = errors.New("exit status is not 0")
+	// errFailTest is an error that occurs when the test fails.
+	errFailTest = errors.New("fail test")
 )
 
 // newHottest returns a hottest.
@@ -138,7 +140,13 @@ func (h *hottest) run() error {
 	if err := h.canUseGoCommand(); err != nil {
 		return errors.New("hottest command requires go command. please install go command")
 	}
-	return h.runTest()
+	if err := h.runTest(); err != nil {
+		return err
+	}
+	if h.stats.Fail > 0 {
+		return errFailTest
+	}
+	return nil
 }
 
 // canUseGoCommand returns true if go command is available.
@@ -176,6 +184,10 @@ func (h *hottest) runTest() error {
 	}
 
 	go h.consume(&wg, r)
+	defer func() {
+		h.interval.End()
+		h.testResult()
+	}()
 
 	sigc := make(chan os.Signal, 1)
 	done := make(chan struct{})
@@ -206,10 +218,6 @@ func (h *hottest) runTest() error {
 		}
 		return err
 	}
-
-	h.interval.End()
-	h.testResult()
-
 	return nil
 }
 
@@ -303,20 +311,20 @@ func (h *hottest) parse(line string) error {
 // testResult prints the test result.
 func (h *hottest) testResult() {
 	if h.stats.Total == 0 {
-		fmt.Println("no tests to run")
+		fmt.Fprintf(os.Stdout, "no tests to run\n")
 		return
 	}
 
-	fmt.Println()
+	fmt.Fprintln(os.Stdout)
 
 	if h.stats.Fail > 0 {
-		fmt.Printf("[Error Messages]\n")
+		fmt.Fprintf(os.Stdout, "[Error Messages]\n")
 		for _, msg := range extractFailTestMessage(h.allTestMessages) {
 			fmt.Printf(" %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
 		}
 	}
 
-	fmt.Printf("Results: %s/%s/%s (%s/%s/%s, %s)\n",
+	fmt.Fprintf(os.Stdout, "Results: %s/%s/%s (%s/%s/%s, %s)\n",
 		color.GreenString("%d", h.stats.Pass), color.RedString("%d", h.stats.Fail), color.BlueString("%d", h.stats.Skip),
 		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
 		h.interval.Duration())
