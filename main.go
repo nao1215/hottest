@@ -143,7 +143,7 @@ func (h *hottest) run() error {
 	if err := h.runTest(); err != nil {
 		return err
 	}
-	if isGitHubActions() && h.stats.Fail > 0 {
+	if h.stats.Fail > 0 {
 		return errFailTest
 	}
 	return nil
@@ -388,9 +388,4 @@ func isRecordableErrorMessage(s string) bool {
 		!strings.Contains(s, "=== CONT") &&
 		!strings.Contains(s, "=== NAME") &&
 		strings.TrimRightFunc(s, unicode.IsSpace) != ""
-}
-
-// isGitHubActions returns true if the hottest command is executed in GitHub Actions.
-func isGitHubActions() bool {
-	return os.Getenv("GITHUB_ACTIONS") == "true"
 }

@@ -866,6 +866,7 @@ func Test_extractFailTestMessage(t *testing.T) {
 }
 
 func Test_main(t *testing.T) {
+	t.Fatal("error")
 	t.Run("test for version package", func(t *testing.T) {
 		os.Args = []string{"hottest", "./version/..."}
 
@@ -937,24 +938,6 @@ func Test_main(t *testing.T) {
 		main()
 		if gotStatus != wantStatus {
 			t.Errorf("os.Exit(%d) is called", gotStatus)
-		}
-	})
-}
-
-func Test_isGitHubActions(t *testing.T) {
-	t.Run("return true if GITHUB_ACTIONS is set", func(t *testing.T) {
-		t.Setenv("GITHUB_ACTIONS", "true")
-
-		if !isGitHubActions() {
-			t.Errorf("want true, got false")
-		}
-	})
-
-	t.Run("return false if GITHUB_ACTIONS is not set", func(t *testing.T) {
-		t.Setenv("GITHUB_ACTIONS", "true")
-
-		if isGitHubActions() {
-			t.Errorf("want false, got true")
 		}
 	})
 }
