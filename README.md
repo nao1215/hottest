@@ -29,6 +29,7 @@ Example:
   hottest -cover ./... -coverprofile=cover.out
 ```
 
+### CLI example
 Example:
 ```bash
 $ hottest ./...
@@ -43,6 +44,41 @@ $ hottest ./...
                }
 Results: 61/2/0 (ok/ng/skip, 242.172244ms, by hottest v0.0.2)
 ```
+
+### On GitHub Actions
+:octocat: GitHub Actions for hottest is available at [nao1215/actions-hottest](https://github.com/nao1215/actions-hottest)
+Sample workflow:
+```yml
+
+name: SampleTest
+
+on:
+  push:
+
+jobs:
+  sample_test:
+    name: sample test
+
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1"
+          check-latest: true
+
+      - uses: nao1215/actions-hottest@v0
+        with:
+          # This argument is same as `go test` command.
+          args: '-cover -coverpkg=./... -coverprofile=coverage.out ./...'
+```
+
 
 ## Alternative tools
 - [rakyll/gotest](https://github.com/rakyll/gotest): go test with colors
