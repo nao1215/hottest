@@ -926,7 +926,7 @@ func Test_main(t *testing.T) {
 		t.Setenv("PATH", "invalid")
 
 		wantStatus := 0
-		gotStatus := 0
+		gotStatus := 1
 		osExit = func(code int) {
 			gotStatus = code
 		}
