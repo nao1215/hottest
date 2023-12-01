@@ -21,7 +21,7 @@ build: ## Build hottest binary
 	env GO111MODULE=on GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) $(GO_LDFLAGS) -o $(APP) main.go
 
 clean: ## Clean project
-	-rm -rf $(APP) cover.out cover.html
+	-rm -rf $(APP) cover.out cover.html hottest_report.md
 
 test: ## Start test
 	env GOOS=$(GOOS) $(GO_TEST) -cover $(GO_PKGROOT) -coverprofile=cover.out
