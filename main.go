@@ -58,6 +58,8 @@ import (
 var osExit = os.Exit
 
 func main() {
+	enableOnCI()
+
 	if err := run(os.Args); err != nil {
 		if errors.Is(err, errExitStatus) || errors.Is(err, errFailTest) {
 			osExit(1)
@@ -378,6 +380,7 @@ func extractStringBeforeThrash(s string) string {
 	return s
 }
 
+// isRecordableErrorMessage returns true if the string is a recordable error message.
 func isRecordableErrorMessage(s string) bool {
 	return !strings.Contains(s, "--- FAIL") &&
 		!strings.Contains(s, "--- PASS") &&
@@ -388,4 +391,21 @@ func isRecordableErrorMessage(s string) bool {
 		!strings.Contains(s, "=== CONT") &&
 		!strings.Contains(s, "=== NAME") &&
 		strings.TrimRightFunc(s, unicode.IsSpace) != ""
+}
+
+// enableOnCI enables color on CI.
+func enableOnCI() {
+	ci := strings.ToLower(os.Getenv("CI"))
+	switch ci {
+	case "true":
+		fallthrough
+	case "travis":
+		fallthrough
+	case "appveyor":
+		fallthrough
+	case "gitlab_ci":
+		fallthrough
+	case "circleci":
+		color.NoColor = false
+	}
 }

@@ -5,12 +5,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fatih/color"
 	"github.com/google/go-cmp/cmp"
 )
 
 func Test_extractFailTestMessage(t *testing.T) {
-	t.Parallel()
-
 	type args struct {
 		testResultMsgs []string
 	}
@@ -856,7 +855,12 @@ func Test_extractFailTestMessage(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+			noColor := color.NoColor
+			color.NoColor = true
+			defer func() {
+				color.NoColor = noColor
+			}()
+
 			got := extractFailTestMessage(tt.args.testResultMsgs)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("extractFailTestMessage() mismatch (-want +got):\n%s", diff)
