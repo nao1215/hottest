@@ -50,6 +50,7 @@ import (
 	"unicode"
 
 	"github.com/fatih/color"
+	"github.com/go-spectest/markdown"
 	"github.com/go-spectest/spectest"
 	"github.com/nao1215/hottest/version"
 	"golang.org/x/exp/slices"
@@ -330,6 +331,56 @@ func (h *hottest) testResult() {
 		color.GreenString("%d", h.stats.Pass), color.RedString("%d", h.stats.Fail), color.BlueString("%d", h.stats.Skip),
 		color.GreenString("%s", "ok"), color.RedString("%s", "ng"), color.BlueString("%s", "skip"),
 		h.interval.Duration())
+
+	h.generateTestResultMarkdownOnGitHubActions()
+}
+
+// generateTestResultMarkdownOnGitHubActions generates the test result markdown on GitHub Actions.
+func (h *hottest) generateTestResultMarkdownOnGitHubActions() {
+	if os.Getenv("GITHUB_ACTIONS") != "true" {
+		return
+	}
+
+	f, err := os.Create("hottest_report.md")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create hottest_report.md: %s", err.Error())
+		return
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to close hottest_report.md: %s", err.Error())
+		}
+	}()
+
+	md := markdown.NewMarkdown(f).
+		H2("HOTTEST report").
+		Table(markdown.TableSet{
+			Header: []string{"PASS", "FAIL", "SKIP", "TOTAL", "DURATION"},
+			Rows: [][]string{
+				{
+					fmt.Sprintf("%d", h.stats.Pass),
+					fmt.Sprintf("%d", h.stats.Fail),
+					fmt.Sprintf("%d", h.stats.Skip),
+					fmt.Sprintf("%d", h.stats.Total),
+					h.interval.Duration().String(),
+				},
+			},
+		})
+
+	if h.stats.Fail > 0 {
+		color.NoColor = true
+		md = md.H2("Error Messages").
+			CodeBlocks(markdown.SyntaxHighlightText, strings.Join(extractFailTestMessage(h.allTestMessages), "\n"))
+		color.NoColor = false
+	}
+
+	err = md.HorizontalRule().LF().
+		PlainTextf("Reported by %s", markdown.Link("hottest", "https://github.com/nao1215/hottest")).Build()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to write markdown report: %s", err.Error())
+		return
+	}
 }
 
 // extractFailTestMessage extracts the error message of the failed test.

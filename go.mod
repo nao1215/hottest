@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/fatih/color v1.16.0
+	github.com/go-spectest/markdown v0.0.7
 	github.com/go-spectest/spectest v0.0.18
 	github.com/google/go-cmp v0.6.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
@@ -12,7 +13,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-spectest/diff v0.0.0-20231006143314-ce490574d4a9 // indirect
-	github.com/go-spectest/markdown v0.0.7 // indirect
 	github.com/go-spectest/mermaid v0.0.1 // indirect
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
