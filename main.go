@@ -143,8 +143,11 @@ func (h *hottest) run() error {
 		return errors.New("hottest command requires go command. please install go command")
 	}
 	if err := h.runTest(); err != nil {
+		h.testResult()
 		return err
 	}
+
+	h.testResult()
 	if h.stats.Fail > 0 {
 		return errFailTest
 	}
@@ -180,16 +183,13 @@ func (h *hottest) runTest() error {
 	cmd.Env = os.Environ()
 
 	h.interval.Start()
+	defer h.interval.End()
 	if err := cmd.Start(); err != nil {
 		wg.Done()
 		return err
 	}
 
 	go h.consume(&wg, r)
-	defer func() {
-		h.interval.End()
-		h.testResult()
-	}()
 
 	sigc := make(chan os.Signal, 1)
 	done := make(chan struct{})
@@ -322,7 +322,7 @@ func (h *hottest) testResult() {
 	if h.stats.Fail > 0 {
 		fmt.Fprintf(os.Stdout, "[Error Messages]\n")
 		for _, msg := range extractFailTestMessage(h.allTestMessages) {
-			fmt.Printf(" %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
+			fmt.Fprintf(os.Stdout, " %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
 		}
 	}
 
