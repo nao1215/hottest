@@ -143,8 +143,13 @@ func (h *hottest) run() error {
 		return errors.New("hottest command requires go command. please install go command")
 	}
 	if err := h.runTest(); err != nil {
+		h.interval.End()
+		h.testResult()
 		return err
 	}
+	h.interval.End()
+	h.testResult()
+
 	if h.stats.Fail > 0 {
 		return errFailTest
 	}
@@ -186,10 +191,6 @@ func (h *hottest) runTest() error {
 	}
 
 	go h.consume(&wg, r)
-	defer func() {
-		h.interval.End()
-		h.testResult()
-	}()
 
 	sigc := make(chan os.Signal, 1)
 	done := make(chan struct{})
@@ -230,17 +231,18 @@ func (h *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
 	for {
 		l, _, err := reader.ReadLine()
 		if err == io.EOF {
-			return
+			break
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
-			return
+			break
 		}
 		if err := h.parse(string(l)); err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
-			return
+			break
 		}
 	}
+	fmt.Fprintln(os.Stdout)
 }
 
 // TestOutputJSON represents the structure of a test output log entry.
@@ -316,8 +318,6 @@ func (h *hottest) testResult() {
 		fmt.Fprintf(os.Stdout, "no tests to run\n")
 		return
 	}
-
-	fmt.Fprintln(os.Stdout)
 
 	if h.stats.Fail > 0 {
 		fmt.Fprintf(os.Stdout, "[Error Messages]\n")
