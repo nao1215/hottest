@@ -80,10 +80,10 @@ jobs:
 ```
   
 #### Success case
-![success](doc/image/success.png)
+![success](doc/image/success2.png)
 
 #### Failure case
-![failure](doc/image/fail.png)
+![failure](doc/image/fail2.png)
 
 ## Alternative tools
 - [rakyll/gotest](https://github.com/rakyll/gotest): go test with colors
