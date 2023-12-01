@@ -322,7 +322,7 @@ func (h *hottest) testResult() {
 	if h.stats.Fail > 0 {
 		fmt.Fprintf(os.Stdout, "[Error Messages]\n")
 		for _, msg := range extractFailTestMessage(h.allTestMessages) {
-			fmt.Printf(" %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
+			fmt.Fprintf(os.Stdout, " %s\n", strings.TrimRightFunc(msg, unicode.IsSpace))
 		}
 	}
 
