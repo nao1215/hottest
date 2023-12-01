@@ -143,13 +143,11 @@ func (h *hottest) run() error {
 		return errors.New("hottest command requires go command. please install go command")
 	}
 	if err := h.runTest(); err != nil {
-		h.interval.End()
 		h.testResult()
 		return err
 	}
-	h.interval.End()
-	h.testResult()
 
+	h.testResult()
 	if h.stats.Fail > 0 {
 		return errFailTest
 	}
@@ -185,6 +183,7 @@ func (h *hottest) runTest() error {
 	cmd.Env = os.Environ()
 
 	h.interval.Start()
+	defer h.interval.End()
 	if err := cmd.Start(); err != nil {
 		wg.Done()
 		return err
