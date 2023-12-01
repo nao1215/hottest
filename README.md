@@ -73,22 +73,32 @@ jobs:
           go-version: "1"
           check-latest: true
 
-      - uses: nao1215/actions-hottest@v0
+      - uses: nao1215/actions-hottest@v1
         with:
           # This argument is same as `go test` command.
           args: '-cover -coverpkg=./... -coverprofile=coverage.out ./...'
 ```
+
+- Set `args` argument same as `go test` command.  
+- `nao1215/actions-hottest` requires the permission to comment on pull requests in order to store test results as PR comments. Please enable the following settings:
+  - [GitHub Repository Top Page] -> [Settings] -> [Actions] -> [General] -> [Read and write permissions] = ON
+- The old PR comments created by `hottest` will be deleted when creating a new PR comment.
   
 #### Success case
 ![success](doc/image/success2.png)
+![github-actions-success](doc/image/github_actions_success.png)
 
 #### Failure case
 ![failure](doc/image/fail2.png)
+![github-actions-fail](doc/image/github_actions_fail.png)
 
 ## Alternative tools
 - [rakyll/gotest](https://github.com/rakyll/gotest): go test with colors
 - [kyoh86/richgo](https://github.com/kyoh86/richgo): Enrich `go test` outputs with text decorations.
 - [gotestyourself/gotestsum](https://github.com/gotestyourself/gotestsum): 'go test' runner with output optimized for humans, JUnit XML for CI integration, and a summary of the test results.
+
+## Hottest does not get coverage
+I considered adding a feature to aggregate coverage information during the development of `hottest`. However, I have decided that it is better to use the excellent coverage aggregation functionality provided by [k1LoW/octocov](https://github.com/k1LoW/octocov). Therefore, `hottest` will not add any features related to coverage.
 
 ## Contributing
 First off, thanks for taking the time to contribute! If you feel that the hottest command is not working properly, please let me know by sending me `go test -v . /... -json` log please.

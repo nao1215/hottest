@@ -56,6 +56,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// osExit is a variable for os.Exit. This variable is used for testing.
 var osExit = os.Exit
 
 func main() {
