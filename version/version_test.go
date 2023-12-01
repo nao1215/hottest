@@ -8,7 +8,6 @@ import (
 
 func TestGetVersion(t *testing.T) {
 	t.Run("If global variable 'Version' is empty, return '' from build information", func(t *testing.T) {
-		t.Fatal("Fatal error")
 		got := GetVersion()
 		want := ""
 		if diff := cmp.Diff(got, want); diff != "" {
