@@ -10,6 +10,7 @@ import (
 )
 
 func Test_extractFailTestMessage(t *testing.T) {
+	t.Fatal("fail test")
 	type args struct {
 		testResultMsgs []string
 	}
