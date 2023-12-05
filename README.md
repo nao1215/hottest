@@ -86,6 +86,9 @@ jobs:
 - `nao1215/actions-hottest` requires the permission to comment on pull requests in order to store test results as PR comments. Please enable the following settings:
   - [GitHub Repository Top Page] -> [Settings] -> [Actions] -> [General] -> [Read and write permissions] = ON
 - The old PR comments created by `hottest` will be deleted when creating a new PR comment.
+
+> [!IMPORTANT]  
+> Please remember to include 'go mod download' in the workflow. If you forget, the hottest command may experience long waiting times when running tests, and the tests may not complete.
   
 #### Success case
 ![success](doc/image/success2.png)
