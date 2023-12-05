@@ -477,15 +477,13 @@ func NewInterval() *Interval {
 }
 
 // Start sets the start time of the interval.
-func (i *Interval) Start() *Interval {
+func (i *Interval) Start() {
 	i.Started = testtime.Now()
-	return i
 }
 
 // End sets the end time of the interval.
-func (i *Interval) End() *Interval {
+func (i *Interval) End() {
 	i.Finished = testtime.Now()
-	return i
 }
 
 // Duration returns the duration of the interval.
