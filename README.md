@@ -73,6 +73,9 @@ jobs:
           go-version: "1"
           check-latest: true
 
+      - name: Download dependencies
+        run: go mod download
+
       - uses: nao1215/actions-hottest@v1
         with:
           # This argument is same as `go test` command.
