@@ -236,11 +236,10 @@ func (h *hottest) consume(wg *sync.WaitGroup, r io.Reader) {
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
-			return
+			return // If an error occurs, the goroutine is not stopped.
 		}
 		if err := h.parse(string(l)); err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
-			return
 		}
 	}
 }
