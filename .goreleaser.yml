@@ -39,3 +39,11 @@ nfpms:
       - deb
       - rpm
       - apk
+brews:
+  - name: hottest
+    description: hottest - user-friendly 'go test' that extracts error messages.
+    license: BSD 3-Clause License
+    repository:
+      owner: nao1215
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"

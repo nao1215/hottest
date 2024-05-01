@@ -16,8 +16,14 @@ Upon completion of the tests, it displays information about the failed tests and
 
 
 ## Installation
+### Use go install
 ```bash
 go install github.com/nao1215/hottest@latest
+```
+
+### Use Homebrew
+```bash
+brew install nao1215/tap/hottest
 ```
 
 ## Usage
